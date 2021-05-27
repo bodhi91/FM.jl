@@ -252,9 +252,8 @@ function bestNodeToMove(gainHeaps::Vector, gainHeapLocators::Vector, binsArea::A
 
     if numNodes[1] == 0 && numNodes[2] == 0
         return (-1, -1)
-    end
 
-    if numNodes[1] == 0 && numNodes[2] > 0
+    elseif numNodes[1] == 0 && numNodes[2] > 0
         node = gainHeaps[2][ptr][1]
         done = binsArea[:, 1] .+ area[node] <= target_area[:, 1]
 
@@ -269,15 +268,8 @@ function bestNodeToMove(gainHeaps::Vector, gainHeapLocators::Vector, binsArea::A
 
         best_node = gainHeaps[2][ptr][1]
         best_side = 1
-        gain_block = gainHeaps[best_side+1][numNodes[best_side+1]]
-        gainHeaps[best_side+1][ptr] = gain_block
-        gainHeapLocators[gain_block[1]] = [best_side+1, ptr]
-        heapifyDown!(ptr, numNodes[best_side+1]-1, gainHeapLocators, gainHeaps, gain_block[2], best_side+1)
 
-        return (best_node, best_side)
-    end
-
-    if numNodes[2] == 0 && numNodes[1] > 0
+    elseif numNodes[2] == 0 && numNodes[1] > 0
         node = gainHeaps[1][ptr][1]
         done = binsArea[:, 2] .+ area[node] <= target_area[:, 2]
 
@@ -292,77 +284,66 @@ function bestNodeToMove(gainHeaps::Vector, gainHeapLocators::Vector, binsArea::A
 
         best_node = gainHeaps[1][ptr][1]
         best_side = 0
-        gain_block = gainHeaps[best_side+1][numNodes[best_side+1]]
-        gainHeaps[best_side+1][ptr] = gain_block
-        gainHeapLocators[gain_block[1]] = [best_side+1, ptr]
-        heapifyDown!(ptr, numNodes[best_side+1]-1, gainHeapLocators, gainHeaps, gain_block[2], best_side+1)
 
-        return (best_node, best_side)
-    end
+    else
+        gain_0 = gainHeaps[1][1][2]
+        gain_1 = gainHeaps[2][1][2]
 
-    gain_0 = gainHeaps[1][1][2]
-    gain_1 = gainHeaps[2][1][2]
-
-    if gain_0 == gain_1 
-        node_0 = gainHeaps[1][ptr][1]
-        node_1 = gainHeaps[2][ptr][1]
-        balance_0 = binsArea[:, 1] .+ area[node_0] <= target_area[:, 1]
-        balance_1 = binsArea[:, 2] .+ area[node_1] <= target_area[:, 2]
+        if gain_0 == gain_1 
+            node_0 = gainHeaps[1][ptr][1]
+            node_1 = gainHeaps[2][ptr][1]
+            balance_0 = binsArea[:, 1] .+ area[node_0] <= target_area[:, 1]
+            balance_1 = binsArea[:, 2] .+ area[node_1] <= target_area[:, 2]
         
-        if balance_0 == true && balance_1 == true
-            best_node = node_0 < node_1 ? node_0 : node_1
-            best_side = noed_0 < noed_1 ? 0 : 1
-        elseif balance_0 == true && balance_1 == false
-            best_node = node_0
-            best_side = 0
-        elseif balance_0 == false && balance_1 == true
-            best_node = node_1
-            best_side = 1
-        else
-            return (-1, -1) #need to rework this
-        end
-
-        gain_block = gainHeaps[best_side+1][numNodes[best_side+1]]
-        gainHeaps[best_side+1][ptr] = gain_block
-        gainHeapLocators[gain_block[1]] = [best_side+1, ptr]
-        heapifyDown!(ptr, numNodes[best_side+1]-1, gainHeapLocators, gainHeaps, gain_block[2], best_side+1)
-
-        return (best_node, best_side)
-    end
-
-    side = gainHeaps[1][1][2] > gainHeaps[2][1][2] ? 0 : 1
-    other_side = side == 0 ? 1 : 0
-    node = gainHeaps[side][ptr][1]
-    balance = binsArea[:, other_side+1] .+ area[node] <= target_area[:, other_side+1]
-
-    if balance == false
-        if ptr == numNodes[side+1]
-            ptr = ptrs[other_side+1]
-            heap_block = gainHeaps[other_side]
-            node = heap_block[ptr][1] 
-            balance = binsArea[:, other_side+1] .+ area[node] <= target_area[:, other_side+1]
-
-            while balance == false
-                if ptr < numNodes[other_side+1]
-                    ptr += 1
-                    node = heap_block[ptr][1]
-                    balance = binsArea[:, other_side+1] .+ area[node] <= target_area[:, other_side+1]
-                else
-                    return -1
-                end
+            if balance_0 == true && balance_1 == true
+                best_node = node_0 < node_1 ? node_0 : node_1
+                best_side = noed_0 < noed_1 ? 0 : 1
+            elseif balance_0 == true && balance_1 == false
+                best_node = node_0
+                best_side = 0
+            elseif balance_0 == false && balance_1 == true
+                best_node = node_1
+                best_side = 1
+            else
+                return (-1, -1) #need to rework this
             end
 
-            best_side = other_side
-            best_node = node
         else
-            best_side = other_side
-            heap_block = gainHeaps[other_side+1]
-            best_node = heap_block[ptr][1]
+            side = gainHeaps[1][1][2] > gainHeaps[2][1][2] ? 0 : 1
+            other_side = side == 0 ? 1 : 0
+            node = gainHeaps[side][ptr][1]
+            balance = binsArea[:, other_side+1] .+ area[node] <= target_area[:, other_side+1]
+
+            if balance == false
+                if ptr == numNodes[side+1]
+                    ptr = ptrs[other_side+1]
+                    heap_block = gainHeaps[other_side]
+                    node = heap_block[ptr][1] 
+                    balance = binsArea[:, other_side+1] .+ area[node] <= target_area[:, other_side+1]
+
+                    while balance == false
+                        if ptr < numNodes[other_side+1]
+                            ptr += 1
+                            node = heap_block[ptr][1]
+                            balance = binsArea[:, other_side+1] .+ area[node] <= target_area[:, other_side+1]
+                        else
+                            return (-1, -1)
+                        end
+                    end
+
+                    best_side = other_side
+                    best_node = node
+                else
+                    best_side = other_side
+                    heap_block = gainHeaps[other_side+1]
+                    best_node = heap_block[ptr][1]
+                end
+            else
+                best_side = side
+                heap_block = gainHeaps[side]
+                best_node = heap_block[ptr][1]
+            end
         end
-    else
-        best_side = side
-        heap_block = gainHeaps[side]
-        best_node = heap_block[ptr][1]
     end
 
     gain_block = gainHeaps[best_side+1][numNodes[best_side+1]]
