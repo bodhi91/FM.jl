@@ -20,7 +20,6 @@ function initEdgeDegs!(H::Hypergraph, bins::Vector{Int}, netDegs::Vector)
     for i in 1:e
         u_loc = eptr[i]
         v_loc = eptr[i+1]
-        #if h_size > _FM_max_fanout
         for j in u_loc:v_loc-1
             v = hedges[j]
             netDegs[i][bins[v]+1] += 1
@@ -40,7 +39,12 @@ function initNodeGains!(H::Hypergraph, fixed::Vector{Int}, bins::Vector{Int}, ga
     i_eptr = incidence.eptr
     h_hedges = H.hedges
     h_eptr = H.eptr
-    w_ = H.w_
+
+    if H.weighted == true
+        w_ = H.w_
+    else
+        w_ = ones(Int, H.e)
+    end
 
     for i in 1:n 
         if fixed[i] == 0
@@ -83,6 +87,10 @@ function updAfterMove!(gains::Vector{Int}, fixed::Vector{Int}, moved::Vector{Int
     h_eptr = H.eptr
     w_ = H.w_
 
+    if H.weighted == false
+        w_ = ones(Int, H.e)
+    end
+
     moved[nIdx] = pass
     toPId = bins[nIdx]
     fromPId = toPId == 0 ? 1 : 0
@@ -95,8 +103,8 @@ function updAfterMove!(gains::Vector{Int}, fixed::Vector{Int}, moved::Vector{Int
         u_loc = h_eptr[h]
         v_loc = h_eptr[h+1]
         h_size = v_loc-u_loc
-        netDegs[h][toPId+1] += eWt
-        netDegs[h][fromPId+1] -= eWt
+        netDegs[h][toPId+1] += 1
+        netDegs[h][fromPId+1] -= 1
 
         for j in u_loc:v_loc-1
             v = h_hedges[j]
@@ -106,21 +114,23 @@ function updAfterMove!(gains::Vector{Int}, fixed::Vector{Int}, moved::Vector{Int
             nodePId = bins[v]
             fromDeg = netDegs[h][fromPId+1]
             toDeg = netDegs[h][toPId+1]
+
             if nodePId == fromPId
                 if fromDeg == 1
-                    gains[v] += 1
+                    gains[v] += eWt
                 end
                 if toDeg == 1
-                    gains[v] += 1
+                    gains[v] += eWt
                 end
             else
                 if fromDeg == 0
-                    gains[v] -= 1
+                    gains[v] -= eWt
                 end
                 if toDeg == 2
-                    gains[v] -= 1
+                    gains[v] -= eWt
                 end
             end
+
             if moved[v] != pass && marked[v] != order
                 push!(nbrs, v)
                 marked[v] = order
@@ -418,11 +428,11 @@ function improveAreaCost(bins::Vector{Int}, binsArea::Array{Int}, fixed::Vector{
             continue
         end
 
-        bestId = nId
+        best_node = nId
         fromP = side
         toP = side == 0 ? 1 : 0
         side_nbrs = Vector{Int}()
-        cut_size -= gains[bestId]
+        cut_size -= gains[best_node]
         excess_cut = cut_size - target_cut
         exp_cut = excess_cut/(max_cut-target_cut)
         cut_cost = base_cut^exp_cut
@@ -435,10 +445,10 @@ function improveAreaCost(bins::Vector{Int}, binsArea::Array{Int}, fixed::Vector{
 
         if total_cost < init_cost
             keep_going = 0
-            bestId = nId
-            bins[bestId] = toP
-            binsArea[:, fromP+1] -= area[bestId, :]
-            binsArea[:, toP+1] += area[bestId, :]
+            best_node = nId
+            bins[best_node] = toP
+            binsArea[:, fromP+1] -= area[best_node, :]
+            binsArea[:, toP+1] += area[best_node, :]
             nbrs = updAfterMove!(gains, fixed, moved, marked, netDegs, nId, bins, H, B, order, pass)
             updateNbrs!(side_nbrs, gains, gainHeapLocators, gainHeaps, numNodes, bins)
             order += 1
@@ -446,14 +456,15 @@ function improveAreaCost(bins::Vector{Int}, binsArea::Array{Int}, fixed::Vector{
         else
             keep_going += 1
 
-            if keep_going == 2
+            if keep_going == 4
+                cut_size += gains[best_node]
                 done = true
                 continue
             else
-                bestId = nId
-                bins[bestId] = toP
-                binsArea[:, fromP+1] -= area[bestId, :]
-                binsArea[:, toP+1] += area[bestId, :]
+                best_node = nId
+                bins[best_node] = toP
+                binsArea[:, fromP+1] -= area[best_node, :]
+                binsArea[:, toP+1] += area[best_node, :]
                 nbrs = updAfterMove!(gains, fixed, moved, marked, netDegs, nId, bins, H, B, order, pass)
                 updateNbrs!(side_nbrs, gains, gainHeapLocators, gainHeaps, numNodes, bins)
                 order += 1
